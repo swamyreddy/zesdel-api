@@ -8,6 +8,10 @@ import { AppError } from '../middleware/errorHandler';
 const FREE_DELIVERY_THRESHOLD = 299;
 const DELIVERY_FEE = 29;
 
+// ── Delivery zone config — add more pincodes as you expand ──────────────────
+const ALLOWED_PINCODES = ['502032'];
+const DELIVERY_AREA_NAME = 'Ameenpur';
+
 interface CartItem { productId: string; quantity: number }
 
 interface PlaceOrderInput {
@@ -67,6 +71,14 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
   // 5. Fetch & snapshot address
   const address = await Address.findOne({ _id: addressId, user: userId });
   if (!address) throw new AppError('Address not found', 404);
+
+  // Delivery zone check
+  if (!ALLOWED_PINCODES.includes(address.pincode)) {
+    throw new AppError(
+      `We currently deliver only in ${DELIVERY_AREA_NAME} (${ALLOWED_PINCODES.join(', ')}). We're expanding soon!`,
+      400
+    );
+  }
 
   const addressSnapshot = {
     label: address.label,

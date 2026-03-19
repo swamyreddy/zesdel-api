@@ -42,7 +42,7 @@ const ProductSchema = new Schema<IProduct>(
     timestamps: true,
     toJSON: {
       virtuals: true,
-      transform(_, ret) { delete ret.__v; return ret; },
+      transform(_, ret) { ret.__v = undefined; return ret; },
     },
   }
 );

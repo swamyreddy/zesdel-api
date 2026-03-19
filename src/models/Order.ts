@@ -95,7 +95,7 @@ const OrderSchema = new Schema<IOrder>(
   },
   {
     timestamps: true,
-    toJSON: { transform(_, ret) { delete ret.__v; return ret; } },
+    toJSON: { transform(_, ret) { ret.__v = undefined; return ret; } },
   }
 );
 

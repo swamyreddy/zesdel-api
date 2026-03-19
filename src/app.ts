@@ -20,7 +20,18 @@ app.use(mongoSanitize());   // prevent NoSQL injection
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    // Allow requests with no origin (mobile apps, curl)
+    if (!origin) return cb(null, true);
+    // Allow all local network IPs in development
+    if (process.env.NODE_ENV !== 'production') {
+      if (origin.startsWith('http://192.168.') ||
+          origin.startsWith('http://10.') ||
+          origin.startsWith('http://localhost') ||
+          origin.startsWith('http://127.')) {
+        return cb(null, true);
+      }
+    }
+    if (allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
