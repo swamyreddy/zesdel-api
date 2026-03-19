@@ -33,11 +33,11 @@ const UserSchema = new Schema<IUser>(
     timestamps: true,
     toJSON: {
       transform(_, ret) {
-        ret.passwordHash = undefined;
-        ret.refreshTokens = undefined;
-        ret.otpHash = undefined;
-        ret.otpExpiry = undefined;
-        ret.__v = undefined;
+        delete (ret as any).passwordHash;
+        delete (ret as any).refreshTokens;
+        delete (ret as any).otpHash;
+        delete (ret as any).otpExpiry;
+        delete (ret as any).__v;
         return ret;
       },
     },

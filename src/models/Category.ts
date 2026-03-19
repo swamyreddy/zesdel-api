@@ -21,7 +21,7 @@ const CategorySchema = new Schema<ICategory>(
     isActive:   { type: Boolean, default: true, index: true },
     sortOrder:  { type: Number, default: 0 },
   },
-  { timestamps: true, toJSON: { transform(_, ret) { ret.__v = undefined; return ret; } } }
+  { timestamps: true, toJSON: { transform(_, ret) { delete (ret as any).__v; return ret; } } }
 );
 
 CategorySchema.index({ isActive: 1, sortOrder: 1 });

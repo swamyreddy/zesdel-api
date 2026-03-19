@@ -34,7 +34,7 @@ const CouponSchema = new Schema<ICoupon>(
   },
   {
     timestamps: true,
-    toJSON: { transform(_, ret) { ret.__v = undefined; return ret; } },
+    toJSON: { transform(_, ret) { delete (ret as any).__v; return ret; } },
   }
 );
 
