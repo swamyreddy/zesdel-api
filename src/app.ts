@@ -17,21 +17,25 @@ app.use(helmet());
 app.use(mongoSanitize());   // prevent NoSQL injection
 
 // ── CORS ──────────────────────────────────────────────────
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow requests with no origin (mobile apps, curl)
+    // Allow requests with no origin (mobile apps, curl, Postman)
     if (!origin) return cb(null, true);
-    // Allow all local network IPs in development
-    if (process.env.NODE_ENV !== 'production') {
-      if (origin.startsWith('http://192.168.') ||
-          origin.startsWith('http://10.') ||
-          origin.startsWith('http://localhost') ||
-          origin.startsWith('http://127.')) {
-        return cb(null, true);
-      }
+    // In development allow all origins
+    if (process.env.NODE_ENV !== 'production') return cb(null, true);
+    // In production allow S3, CloudFront and local origins
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.startsWith('http://192.168.') ||
+      origin.startsWith('http://10.') ||
+      origin.startsWith('http://localhost') ||
+      origin.includes('.s3-website.') ||
+      origin.includes('.cloudfront.net') ||
+      origin.includes('.amazonaws.com')
+    ) {
+      return cb(null, true);
     }
-    if (allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
