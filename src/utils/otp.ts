@@ -25,7 +25,7 @@ export const createOTP = async (
 
   await OTP.create({ phone, otp, purpose, expiresAt });
 
-  // In production: send via Twilio / MSG91 / Fast2SMS
+  // In production: send via MSG91 / Fast2SMS / AWS SNS
   // For development: log to console
   if (process.env.NODE_ENV !== 'production') {
     logger.info(`📱 OTP for ${phone} [${purpose}]: ${otp}`);

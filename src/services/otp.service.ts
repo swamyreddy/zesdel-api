@@ -13,7 +13,7 @@ export const verifyOTP = async (plain: string, hash: string): Promise<boolean> =
 
 /**
  * Send OTP via SMS — stub for now.
- * Replace with Twilio / MSG91 / AWS SNS in production.
+ * Replace with MSG91 / Fast2SMS / AWS SNS in production.
  */
 export const sendOTP = async (phone: string, otp: string): Promise<void> => {
   if (process.env.NODE_ENV !== 'production') {
