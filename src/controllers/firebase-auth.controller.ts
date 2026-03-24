@@ -25,8 +25,9 @@ export const firebaseVerify = asyncHandler(async (req: Request, res: Response) =
 
   if (!user) {
     // New user — name is required
+    // Return 404 so Flutter knows to show the name field
     if (!name || name.trim().length < 2) {
-      throw new AppError('Please provide your name to complete registration', 400);
+      throw new AppError('Please provide your name to complete registration', 404);
     }
     // Create user with a dummy password hash (Firebase users don't need passwords)
     const dummyHash = await bcrypt.hash(uid + Math.random().toString(36), 12);
