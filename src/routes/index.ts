@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import authRoutes     from './auth.routes';
-import otpAuthRoutes  from './otp-auth.routes';
+import authRoutes          from './auth.routes';
+import otpAuthRoutes        from './otp-auth.routes';
+import firebaseAuthRoutes   from './firebase-auth.routes';
 import productRoutes  from './product.routes';
 import categoryRoutes from './category.routes';
 import addressRoutes  from './address.routes';
@@ -11,8 +12,9 @@ import paymentRoutes  from './payment.routes';
 
 const router = Router();
 
-router.use('/auth',         authRoutes);
-router.use('/auth/otp',     otpAuthRoutes);
+router.use('/auth',             authRoutes);
+router.use('/auth/otp',         otpAuthRoutes);
+router.use('/auth/firebase',    firebaseAuthRoutes);
 router.use('/products',     productRoutes);
 router.use('/categories',   categoryRoutes);
 router.use('/addresses',    addressRoutes);
