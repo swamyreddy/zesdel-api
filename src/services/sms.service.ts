@@ -1,43 +1,45 @@
 import { logger } from '../utils/logger';
+import axios from 'axios';
 
 /**
- * SMS OTP via Zavu
+ * SMS OTP via Zavu REST API (no SDK needed)
  *
  * Setup:
  * 1. Sign up at https://dashboard.zavu.dev
- * 2. Get your API key from Dashboard → Settings → API Keys
+ * 2. Settings → API Keys → copy your key
  * 3. Add to .env: ZAVU_API_KEY=your_api_key
  */
 
-let zavuClient: any = null;
-
-function getClient() {
-  if (!zavuClient) {
-    const Zavu = require('@zavudev/sdk').default;
-    zavuClient = new Zavu({ apiKey: process.env.ZAVU_API_KEY! });
-  }
-  return zavuClient;
-}
-
 export const sendSmsOTP = async (phone: string, otp: string): Promise<void> => {
 
-  // Dev mode — just log
   if (!process.env.ZAVU_API_KEY) {
     logger.info(`[DEV] OTP for +91${phone}: ${otp}`);
     return;
   }
 
   try {
-    const zavu = getClient();
+    const response = await axios.post(
+      'https://api.zavu.dev/v1/messages',
+      {
+        to:      `+91${phone}`,
+        channel: 'sms',
+        text:    `Your ZesDel OTP is ${otp}. Valid for 10 minutes. Do not share with anyone.`,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.ZAVU_API_KEY}`,
+          'Content-Type':  'application/json',
+        },
+        timeout: 10000,
+      }
+    );
 
-    const message = await zavu.messages.send({
-      to:      `+91${phone}`,
-      channel: 'sms',
-      text:    `Your ZesDel OTP is ${otp}. Valid for 10 minutes. Do not share with anyone.`,
-    });
-
-    logger.info(`OTP sent to +91${phone} via Zavu SMS — ID: ${message.id}`);
+    logger.info(`OTP sent to +91${phone} via Zavu — ID: ${response.data?.id || response.data?.message?.id}`);
   } catch (err: any) {
+    if (err.response) {
+      logger.error(`Zavu ${err.response.status}: ${JSON.stringify(err.response.data)}`);
+      throw new Error('Failed to send OTP. Please try again.');
+    }
     logger.error(`Zavu OTP failed for +91${phone}: ${err.message}`);
     throw new Error('Failed to send OTP. Please try again.');
   }
