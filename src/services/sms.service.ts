@@ -1,5 +1,5 @@
-import { logger } from '../utils/logger';
-import axios from 'axios';
+import { logger } from "../utils/logger";
+import axios from "axios";
 
 /**
  * SMS OTP via Zavu REST API (no SDK needed)
@@ -11,36 +11,40 @@ import axios from 'axios';
  */
 
 export const sendSmsOTP = async (phone: string, otp: string): Promise<void> => {
-
-  if (!process.env.ZAVU_API_KEY) {
-    logger.info(`[DEV] OTP for +91${phone}: ${otp}`);
-    return;
-  }
-
-  try {
-    const response = await axios.post(
-      'https://api.zavu.dev/v1/messages',
-      {
-        to:      `+91${phone}`,
-        channel: 'sms',
-        text:    `Your ZesDel OTP is ${otp}. Valid for 10 minutes. Do not share with anyone.`,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.ZAVU_API_KEY}`,
-          'Content-Type':  'application/json',
-        },
-        timeout: 10000,
-      }
-    );
-
-    logger.info(`OTP sent to +91${phone} via Zavu — ID: ${response.data?.id || response.data?.message?.id}`);
-  } catch (err: any) {
-    if (err.response) {
-      logger.error(`Zavu ${err.response.status}: ${JSON.stringify(err.response.data)}`);
-      throw new Error('Failed to send OTP. Please try again.');
+    if (!process.env.ZAVU_API_KEY) {
+        logger.info(`[DEV] OTP for +91${phone}: ${otp}`);
+        return;
     }
-    logger.error(`Zavu OTP failed for +91${phone}: ${err.message}`);
-    throw new Error('Failed to send OTP. Please try again.');
-  }
+
+    try {
+        const response = await axios.post(
+            "https://api.zavu.dev/v1/messages",
+            {
+                to: `+91${phone}`,
+                channel: "whatsapp",
+                text: `Your ZesDel OTP is ${otp}. Valid for 10 minutes. Do not share with anyone.`,
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.ZAVU_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "Zavu-Sender": process.env.ZAVU_SENDER_ID!,
+                },
+                timeout: 10000,
+            },
+        );
+
+        logger.info(
+            `OTP sent to +91${phone} via Zavu — ID: ${response.data?.id || response.data?.message?.id}`,
+        );
+    } catch (err: any) {
+        if (err.response) {
+            logger.error(
+                `Zavu ${err.response.status}: ${JSON.stringify(err.response.data)}`,
+            );
+            throw new Error("Failed to send OTP. Please try again.");
+        }
+        logger.error(`Zavu OTP failed for +91${phone}: ${err.message}`);
+        throw new Error("Failed to send OTP. Please try again.");
+    }
 };
