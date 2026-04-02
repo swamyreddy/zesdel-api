@@ -21,7 +21,7 @@ export const sendSmsOTP = async (phone: string, otp: string): Promise<void> => {
             "https://api.zavu.dev/v1/messages",
             {
                 to: `+91${phone}`,
-                channel: "whatsapp",
+                channel: "sms_oneway",
                 text: `Your ZesDel OTP is ${otp}. Valid for 10 minutes. Do not share with anyone.`,
             },
             {
