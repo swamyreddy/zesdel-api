@@ -10,6 +10,7 @@ export interface IUser extends Document {
   role: 'customer' | 'admin';
   isActive: boolean;
   refreshTokens: string[];  // support multiple devices
+  fcmTokens:     string[];  // push notification tokens
   otpHash?: string;
   otpExpiry?: Date;
   createdAt: Date;
@@ -26,6 +27,7 @@ const UserSchema = new Schema<IUser>(
     role:          { type: String, enum: ['customer', 'admin'], default: 'customer' },
     isActive:      { type: Boolean, default: true },
     refreshTokens: { type: [String], select: false, default: [] },
+    fcmTokens:     { type: [String], default: [] },
     otpHash:       { type: String, select: false },
     otpExpiry:     { type: Date, select: false },
   },

@@ -15,8 +15,16 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
 
   const filter: Record<string, unknown> = {};
 
-  // Full-text search
-  if (search) filter.$text = { $search: search };
+  // Partial/prefix search using regex — works without text index
+  // Searches name, description and tags fields case-insensitively
+  if (search) {
+    const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    filter.$or = [
+      { name:        { $regex: escapedSearch, $options: 'i' } },
+      { description: { $regex: escapedSearch, $options: 'i' } },
+      { tags:        { $regex: escapedSearch, $options: 'i' } },
+    ];
+  }
 
   // Category filter
   if (category) filter.categorySlug = category;
@@ -40,7 +48,7 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
 
   // Sort mapping
   const sortMap: Record<string, Record<string, 1 | -1>> = {
-    relevance:  search ? { score: { $meta: 'textScore' } as any } : { createdAt: -1 },
+    relevance:  { createdAt: -1 },
     priceAsc:   { price: 1 },
     priceDesc:  { price: -1 },
     rating:     { rating: -1 },
@@ -53,7 +61,7 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
   const skip = (pageNum - 1) * limitNum;
 
   const [products, total] = await Promise.all([
-    Product.find(filter, search ? { score: { $meta: 'textScore' } } : {})
+    Product.find(filter)
       .sort(sortObj)
       .skip(skip)
       .limit(limitNum)

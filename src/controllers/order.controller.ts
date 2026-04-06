@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
 import { Order } from '../models/Order';
+import { User } from '../models/User';
 import { placeOrder, updateOrderStatus } from '../services/order.service';
 import { sendSuccess, sendCreated } from '../utils/apiResponse';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../middleware/errorHandler';
+import { sendPushNotification, sendPushToMany } from '../services/notification.service';
 
 // POST /api/orders
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
@@ -16,6 +18,30 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
     paymentMethod,
     razorpayPaymentId,
   });
+
+  // Notify customer
+  const customer = await User.findById(req.user!._id);
+  if (customer?.fcmTokens?.length) {
+    await sendPushToMany({
+      fcmTokens: customer.fcmTokens,
+      title:     '✅ Order Placed!',
+      body:      `Your order #${(order as any)._id.toString().slice(-6).toUpperCase()} has been placed. We\'ll confirm it shortly.`,
+      data:      { orderId: (order as any)._id.toString(), type: 'order_placed' },
+    });
+  }
+
+  // Notify admin
+  const admins = await User.find({ role: 'admin', fcmTokens: { $exists: true, $ne: [] } });
+  const adminTokens = admins.flatMap(a => a.fcmTokens || []);
+  if (adminTokens.length) {
+    await sendPushToMany({
+      fcmTokens: adminTokens,
+      title:     '🛒 New Order!',
+      body:      `New order from ${customer?.name || 'Customer'} — ₹${(order as any).total}`,
+      data:      { orderId: (order as any)._id.toString(), type: 'new_order_admin' },
+    });
+  }
+
   return sendCreated(res, order, 'Order placed successfully');
 });
 
@@ -61,6 +87,25 @@ export const cancelOrder = asyncHandler(async (req: Request, res: Response) => {
 export const adminUpdateStatus = asyncHandler(async (req: Request, res: Response) => {
   const { status, note } = req.body;
   const order = await updateOrderStatus(req.params.id, status, note);
+
+  // Notify customer of status change
+  const customer = await User.findById((order as any).user);
+  if (customer?.fcmTokens?.length) {
+    const statusMessages: Record<string, string> = {
+      confirmed:       '✅ Order Confirmed! We\'re preparing your order.',
+      out_for_delivery:'🚚 Out for Delivery! Your order is on the way.',
+      delivered:       '🎉 Delivered! Enjoy your order. Thank you!',
+      cancelled:       '❌ Order Cancelled. Contact us for help.',
+    };
+    const body = statusMessages[status] || `Your order status: ${status}`;
+    await sendPushToMany({
+      fcmTokens: customer.fcmTokens,
+      title:     'ZesDel Order Update',
+      body,
+      data:      { orderId: req.params.id, type: 'order_status', status },
+    });
+  }
+
   return sendSuccess(res, order, 'Order status updated');
 });
 

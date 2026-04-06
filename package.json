@@ -25,7 +25,8 @@
     "winston": "^3.13.0",
     "winston-daily-rotate-file": "^5.0.0",
     "razorpay": "^2.9.2",
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "google-auth-library": "^9.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
