@@ -275,6 +275,7 @@ export const bulkImportProducts = asyncHandler(
                 name: string;
                 subtitle?: string;
                 price: number;
+                unit: string;
                 originalPrice?: number;
                 categorySlug: string;
                 badge?: string;
@@ -331,6 +332,7 @@ export const bulkImportProducts = asyncHandler(
                     await Product.findByIdAndUpdate(existing._id, {
                         subtitle: p.subtitle || existing.subtitle,
                         price: p.price,
+                        unit: p.unit || "",
                         originalPrice: p.originalPrice,
                         categorySlug: p.categorySlug,
                         category: categoryId,
@@ -347,6 +349,7 @@ export const bulkImportProducts = asyncHandler(
                         name: p.name.trim(),
                         subtitle: p.subtitle || "",
                         price: p.price,
+                        unit: p.unit || "",
                         originalPrice: p.originalPrice,
                         categorySlug: p.categorySlug,
                         category: categoryId,
