@@ -39,7 +39,7 @@ const UserSchema = new Schema<IUser>(
             lowercase: true,
             trim: true,
         },
-        passwordHash: { type: String, required: true, select: false },
+        passwordHash: { type: String, required: false, select: false },
         role: {
             type: String,
             enum: ["customer", "admin", "delivery"],
