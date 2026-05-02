@@ -15,6 +15,9 @@ import {
     adminUpdateCategory,
     adminDeleteCategory,
     bulkImportProducts,
+    createUser,
+    updateUser,
+    deleteUser,
 } from "../controllers/admin.controller";
 import { body } from "express-validator";
 import { validate } from "../middleware/validate";
@@ -51,5 +54,7 @@ router.post(
     requireRole("admin"),
     bulkImportProducts,
 );
-
+router.post("/users", protect, requireRole("admin"), createUser);
+router.patch("/users/:id", protect, requireRole("admin"), updateUser);
+router.delete("/users/:id", protect, requireRole("admin"), deleteUser);
 export default router;

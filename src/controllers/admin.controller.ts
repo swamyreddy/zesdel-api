@@ -382,4 +382,64 @@ export const bulkImportProducts = asyncHandler(
             `Bulk import complete: ${results.success} success, ${results.failed} failed`,
         );
     },
-);
+); // Create a new user (delivery agent, admin etc)
+export const createUser = asyncHandler(async (req: Request, res: Response) => {
+    const { name, phone, role, isActive } = req.body as {
+        name: string;
+        phone: string;
+        role: string;
+        isActive?: boolean;
+    };
+
+    if (!name || !phone)
+        return sendError(res, "Name and phone are required", 400);
+    if (!["customer", "delivery", "admin"].includes(role))
+        return sendError(res, "Invalid role", 400);
+
+    // Check if phone already exists
+    const existing = await User.findOne({ phone });
+    if (existing) return sendError(res, "Phone number already registered", 400);
+
+    const user = await User.create({
+        name: name.trim(),
+        phone,
+        role,
+        isActive: isActive ?? true,
+    });
+
+    return sendSuccess(res, user, "User created successfully");
+});
+
+// ── PATCH /api/v1/admin/users/:id ─────────────────────────────────────────────
+// Update user (name, phone, role, isActive)
+export const updateUser = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { name, phone, role, isActive } = req.body;
+
+    const user = await User.findById(id);
+    if (!user) return sendError(res, "User not found", 404);
+
+    if (name) user.name = name.trim();
+    if (phone) user.phone = phone;
+    if (role) user.role = role;
+    if (isActive !== undefined) user.isActive = isActive;
+
+    await user.save();
+    return sendSuccess(res, user, "User updated successfully");
+});
+
+// ── DELETE /api/v1/admin/users/:id ────────────────────────────────────────────
+// Delete user (soft delete by setting isActive = false, or hard delete)
+export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    // Prevent deleting yourself
+    if (id === req.user?._id.toString())
+        return sendError(res, "Cannot delete your own account", 400);
+
+    const user = await User.findById(id);
+    if (!user) return sendError(res, "User not found", 404);
+
+    await User.findByIdAndDelete(id);
+    return sendSuccess(res, null, "User deleted successfully");
+});
