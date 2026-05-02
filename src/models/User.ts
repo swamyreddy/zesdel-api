@@ -54,12 +54,10 @@ const UserSchema = new Schema<IUser>(
             type: {
                 type: String,
                 enum: ["Point"],
-                default: "Point",
                 required: false,
             },
             coordinates: {
                 type: [Number],
-                default: undefined,
                 required: false,
             },
         },
@@ -95,6 +93,6 @@ UserSchema.methods.comparePassword = async function (
 // Compound index for quick lookup
 UserSchema.index({ phone: 1, isActive: 1 });
 
-UserSchema.index({ lastLocation: "2dsphere" });
+UserSchema.index({ lastLocation: "2dsphere" }, { sparse: true });
 
 export const User: Model<IUser> = mongoose.model<IUser>("User", UserSchema);
