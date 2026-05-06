@@ -19,7 +19,7 @@ export const sendOTP = async (phone: string, otp: string): Promise<void> => {
     logger.info(`OTP for ${phone}: ${otp}`);
 
     if (process.env.NODE_ENV !== "production") return;
-
+    logger.info("Check 2: In production, sending OTP via MSG91  ");
     const authKey = process.env.MSG91_AUTH_KEY;
     const templateId = process.env.MSG91_TEMPLATE_ID;
     const senderId = process.env.MSG91_SENDER_ID || "ZESDEL";
@@ -30,11 +30,12 @@ export const sendOTP = async (phone: string, otp: string): Promise<void> => {
         );
         return;
     }
-
+    logger.info("Check 3: In production, sending OTP via MSG91  ");
     // MSG91 expects phone without + e.g. 919876543210
     const mobileNumber = phone.replace(/^\+/, "");
 
     try {
+        logger.info("Check 4: In production, sending OTP via MSG91  ");
         const res = await fetch("https://api.msg91.com/api/v5/otp", {
             method: "POST",
             headers: {
@@ -48,12 +49,14 @@ export const sendOTP = async (phone: string, otp: string): Promise<void> => {
                 otp,
             }),
         });
-
+        logger.info("Check 5: In production, sending OTP via MSG91  ");
         const data = (await res.json()) as { type: string; message: string };
 
         if (data.type === "success") {
+            logger.info("Check 6: In production, sending OTP via MSG91  ");
             logger.info(`MSG91 OTP sent to ${phone}`);
         } else {
+            logger.info("Check 7: In production, sending OTP via MSG91  ");
             logger.error(`MSG91 error: ${data.message}`);
             throw new Error(`MSG91: ${data.message}`);
         }
