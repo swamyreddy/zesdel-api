@@ -262,7 +262,7 @@ export const verifyWidgetToken = asyncHandler(
                 : cleaned.length === 10
                   ? cleaned
                   : cleaned.replace(/^91/, "");
-        const normalized = `+91${rawPhone}`;
+        const normalized = `${rawPhone}`;
 
         // Find existing user — do NOT auto-create
         const user = await User.findOne({ phone: normalized });
