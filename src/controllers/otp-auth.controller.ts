@@ -251,35 +251,33 @@ export const verifyWidgetToken = asyncHandler(
         if (!token || !phone)
             return sendError(res, "token and phone are required", 400);
 
-        // Normalize phone
-        const rawPhone = String(phone)
-            .replace(/^\+?91/, "")
-            .replace(/\D/g, "");
+        // Normalize — handle all formats:
+        // 9876543210      → +919876543210
+        // 919876543210    → +919876543210
+        // +919876543210   → +919876543210
+        const cleaned = String(phone).replace(/\D/g, ""); // digits only
+        const rawPhone =
+            cleaned.length === 12 && cleaned.startsWith("91")
+                ? cleaned.slice(2)
+                : cleaned.length === 10
+                  ? cleaned
+                  : cleaned.replace(/^91/, "");
         const normalized = `+91${rawPhone}`;
 
-        // Find or create user
-        let user = await User.findOne({ phone: normalized });
+        // Find existing user — do NOT auto-create
+        const user = await User.findOne({ phone: normalized });
 
         if (!user) {
-            // Auto-create customer account
-            const result = await User.collection.insertOne({
-                name: "Customer",
-                phone: normalized,
-                role: "customer",
-                isActive: true,
-                passwordHash: null,
-                refreshTokens: [],
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            });
-            user = await User.findById(result.insertedId);
+            return sendError(
+                res,
+                `Phone ${normalized} not registered. Please contact admin.`,
+                404,
+            );
         }
 
-        if (!user) return sendError(res, "Failed to create user", 500);
         if (!user.isActive)
             return sendError(res, "Account is deactivated", 403);
 
-        // Generate tokens
         const accessToken = generateAccessToken(user._id as any, user.role);
         const refreshToken = generateRefreshToken(user._id as any);
 
