@@ -244,3 +244,64 @@ export const verifyForgotPasswordOtp = asyncHandler(
         );
     },
 );
+export const verifyWidgetToken = asyncHandler(
+    async (req: Request, res: Response) => {
+        const { token, phone } = req.body as { token: string; phone: string };
+
+        if (!token || !phone)
+            return sendError(res, "token and phone are required", 400);
+
+        // Normalize phone
+        const rawPhone = String(phone)
+            .replace(/^\+?91/, "")
+            .replace(/\D/g, "");
+        const normalized = `+91${rawPhone}`;
+
+        // Find or create user
+        let user = await User.findOne({ phone: normalized });
+
+        if (!user) {
+            // Auto-create customer account
+            const result = await User.collection.insertOne({
+                name: "Customer",
+                phone: normalized,
+                role: "customer",
+                isActive: true,
+                passwordHash: null,
+                refreshTokens: [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            });
+            user = await User.findById(result.insertedId);
+        }
+
+        if (!user) return sendError(res, "Failed to create user", 500);
+        if (!user.isActive)
+            return sendError(res, "Account is deactivated", 403);
+
+        // Generate tokens
+        const accessToken = generateAccessToken(user._id as any, user.role);
+        const refreshToken = generateRefreshToken(user._id as any);
+
+        user.refreshTokens = [
+            ...(user.refreshTokens || []).slice(-4),
+            refreshToken,
+        ];
+        await user.save();
+
+        return sendSuccess(
+            res,
+            {
+                user: {
+                    _id: user._id,
+                    name: user.name,
+                    phone: user.phone,
+                    role: user.role,
+                },
+                accessToken,
+                refreshToken,
+            },
+            "Login successful",
+        );
+    },
+);
