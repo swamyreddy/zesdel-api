@@ -268,11 +268,36 @@ export const verifyWidgetToken = asyncHandler(
         const user = await User.findOne({ phone: normalized });
 
         if (!user) {
-            return sendError(
-                res,
-                `Phone ${normalized} not registered. Please contact admin.`,
-                404,
+            const newUser = await User.create({
+                name: "",
+                phone,
+                //  passwordHash: dummyHash,
+                role: "customer",
+            });
+            const accessToken = generateAccessToken(
+                newUser._id as any,
+                newUser.role,
             );
+            const refreshToken = generateRefreshToken(newUser._id as any);
+            return sendSuccess(
+                res,
+                {
+                    user: {
+                        _id: newUser._id,
+                        name: newUser.name,
+                        phone: newUser.phone,
+                        role: newUser.role,
+                    },
+                    accessToken,
+                    refreshToken,
+                },
+                "Login successful",
+            );
+            // return sendError(
+            //     res,
+            //     `Phone ${normalized} not registered. Please contact admin.`,
+            //     404,
+            // );
         }
 
         if (!user.isActive)
