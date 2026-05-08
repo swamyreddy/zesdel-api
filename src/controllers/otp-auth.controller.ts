@@ -269,6 +269,7 @@ export const verifyWidgetToken = asyncHandler(
 
         if (!user) {
             const newUser = await User.create({
+                name: " ",
                 phone: phone,
                 //  passwordHash: dummyHash,
                 role: "customer",
