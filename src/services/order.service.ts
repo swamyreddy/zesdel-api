@@ -8,7 +8,6 @@ import { AppError } from "../middleware/errorHandler";
 const FREE_DELIVERY_THRESHOLD = 299;
 const DELIVERY_FEE = 29;
 
-// ── Delivery zone config — add more pincodes as you expand ──────────────────
 const ALLOWED_PINCODES = ["502032"];
 const DELIVERY_AREA_NAME = "Ameenpur";
 
@@ -35,9 +34,10 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
         couponCode,
         paymentMethod,
         razorpayPaymentId,
+        scheduledSlot, // ← now properly destructured and used
     } = input;
 
-    // 1. Validate & fetch products (single $in query)
+    // 1. Validate & fetch products
     const productIds = items.map((i) => new Types.ObjectId(i.productId));
     const products = await Product.find({
         _id: { $in: productIds },
@@ -95,7 +95,6 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
     const address = await Address.findOne({ _id: addressId, user: userId });
     if (!address) throw new AppError("Address not found", 404);
 
-    // Delivery zone check
     if (!ALLOWED_PINCODES.includes(address.pincode)) {
         throw new AppError(
             `We currently deliver only in ${DELIVERY_AREA_NAME} (${ALLOWED_PINCODES.join(", ")}). We're expanding soon!`,
@@ -115,9 +114,7 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
         coordinates: address.location?.coordinates,
     };
 
-    // 6. Create order — paymentStatus depends on method
-    // COD → pending until delivery
-    // Razorpay (UPI/card) → paid if paymentId present, else pending
+    // 6. Payment status
     const paymentStatus =
         paymentMethod === "cod"
             ? "pending"
@@ -125,6 +122,7 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
               ? "paid"
               : "pending";
 
+    // 7. Create order — include scheduledSlot ← fixed
     const order = await Order.create({
         user: userId,
         items: orderItems,
@@ -137,6 +135,7 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
         paymentMethod,
         paymentStatus,
         ...(razorpayPaymentId && { razorpayPaymentId }),
+        ...(scheduledSlot && { scheduledSlot }), // ← added
         status: "placed",
     });
 
