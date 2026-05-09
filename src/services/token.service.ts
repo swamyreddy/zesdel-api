@@ -13,14 +13,14 @@ export const generateAccessToken = (
     jwt.sign(
         { userId: userId.toString(), role },
         process.env.JWT_SECRET as string,
-        { expiresIn: "15m" } as any,
+        { expiresIn: "7d" } as any,
     );
 
 export const generateRefreshToken = (userId: Types.ObjectId): string =>
     jwt.sign(
         { userId: userId.toString() },
         process.env.JWT_REFRESH_SECRET as string,
-        { expiresIn: "7d" } as any,
+        { expiresIn: "30d" } as any,
     );
 
 export const verifyAccessToken = (token: string): TokenPayload =>
