@@ -4,6 +4,7 @@ import {
     adminListOrders,
     adminUpdateStatus,
     adminGetOrder,
+    adminDeleteAllOrders,
 } from "../controllers/order.controller";
 import {
     getDashboardStats,
@@ -57,4 +58,11 @@ router.post(
 router.post("/users", protect, requireRole("admin"), createUser);
 router.patch("/users/:id", protect, requireRole("admin"), updateUser);
 router.delete("/users/:id", protect, requireRole("admin"), deleteUser);
+router.delete(
+    "/orders/all",
+    protect,
+    requireRole("admin"),
+    adminDeleteAllOrders,
+);
+
 export default router;

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { Order } from "../models/Order";
 import { User } from "../models/User";
 import { placeOrder, updateOrderStatus } from "../services/order.service";
-import { sendSuccess, sendCreated } from "../utils/apiResponse";
+import { sendSuccess, sendCreated, sendError } from "../utils/apiResponse";
 import { asyncHandler } from "../utils/asyncHandler";
 import { AppError } from "../middleware/errorHandler";
 import {
@@ -192,5 +192,26 @@ export const adminGetOrder = asyncHandler(
         );
         if (!order) throw new AppError("Order not found", 404);
         return sendSuccess(res, order);
+    },
+);
+// Admin: DELETE /api/v1/admin/orders/all
+export const adminDeleteAllOrders = asyncHandler(
+    async (req: Request, res: Response) => {
+        const { confirm } = req.body as { confirm: string };
+
+        if (confirm !== "DELETE_ALL_ORDERS") {
+            return sendError(
+                res,
+                'Send confirm: "DELETE_ALL_ORDERS" in body to confirm',
+                400,
+            );
+        }
+
+        const result = await Order.deleteMany({});
+        return sendSuccess(
+            res,
+            { deleted: result.deletedCount },
+            `Deleted ${result.deletedCount} orders`,
+        );
     },
 );
