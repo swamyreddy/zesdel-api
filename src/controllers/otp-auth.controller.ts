@@ -70,14 +70,14 @@ export const sendOtpHandler = asyncHandler(
                 );
         }
 
-        if (purpose === "login") {
-            const user = await User.findOne({ phone, isActive: true });
-            if (!user)
-                throw new AppError(
-                    "Phone number not registered. Please sign up.",
-                    404,
-                );
-        }
+        // if (purpose === "login") {
+        //     const user = await User.findOne({ phone, isActive: true });
+        //     if (!user)
+        //         throw new AppError(
+        //             "Phone number not registered. Please sign up.",
+        //             404,
+        //         );
+        // }
 
         if (purpose === "forgot_password") {
             const user = await User.findOne({ phone, isActive: true });
