@@ -3,11 +3,12 @@ import { Order, IOrder, OrderStatus } from "../models/Order";
 import { Product } from "../models/Product";
 import { Coupon } from "../models/Coupon";
 import { Address } from "../models/Address";
+import { User } from "../models/User";
 import { AppError } from "../middleware/errorHandler";
+import { creditAgentCommission } from "../controllers/agent.controller";
 
 const FREE_DELIVERY_THRESHOLD = 299;
 const DELIVERY_FEE = 29;
-
 const ALLOWED_PINCODES = ["502032"];
 const DELIVERY_AREA_NAME = "Ameenpur";
 
@@ -34,7 +35,7 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
         couponCode,
         paymentMethod,
         razorpayPaymentId,
-        scheduledSlot, // ← now properly destructured and used
+        scheduledSlot,
     } = input;
 
     // 1. Validate & fetch products
@@ -43,12 +44,10 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
         _id: { $in: productIds },
         isAvailable: true,
     });
-
-    if (products.length !== items.length) {
+    if (products.length !== items.length)
         throw new AppError("One or more products are unavailable", 400);
-    }
 
-    // 2. Build order items with price snapshot
+    // 2. Build order items
     const orderItems = items.map((item) => {
         const product = products.find(
             (p) => p._id.toString() === item.productId,
@@ -65,7 +64,7 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
 
     const subtotal = orderItems.reduce((sum, i) => sum + i.subtotal, 0);
 
-    // 3. Apply coupon if provided
+    // 3. Apply coupon
     let discount = 0;
     let validCouponCode: string | undefined;
     if (couponCode) {
@@ -76,12 +75,8 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
         if (!coupon) throw new AppError("Invalid or expired coupon", 400);
         if (coupon.expiresAt && coupon.expiresAt < new Date())
             throw new AppError("Coupon expired", 400);
-        if (
-            coupon.usageLimit !== -1 &&
-            coupon.usageCount >= coupon.usageLimit
-        ) {
+        if (coupon.usageLimit !== -1 && coupon.usageCount >= coupon.usageLimit)
             throw new AppError("Coupon usage limit reached", 400);
-        }
         discount = coupon.computeDiscount(subtotal);
         validCouponCode = coupon.code;
         await Coupon.findByIdAndUpdate(coupon._id, { $inc: { usageCount: 1 } });
@@ -94,7 +89,6 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
     // 5. Fetch & snapshot address
     const address = await Address.findOne({ _id: addressId, user: userId });
     if (!address) throw new AppError("Address not found", 404);
-
     if (!ALLOWED_PINCODES.includes(address.pincode)) {
         throw new AppError(
             `We currently deliver only in ${DELIVERY_AREA_NAME} (${ALLOWED_PINCODES.join(", ")}). We're expanding soon!`,
@@ -122,7 +116,7 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
               ? "paid"
               : "pending";
 
-    // 7. Create order — include scheduledSlot ← fixed
+    // 7. Create order
     const order = await Order.create({
         user: userId,
         items: orderItems,
@@ -135,9 +129,21 @@ export const placeOrder = async (input: PlaceOrderInput): Promise<IOrder> => {
         paymentMethod,
         paymentStatus,
         ...(razorpayPaymentId && { razorpayPaymentId }),
-        ...(scheduledSlot && { scheduledSlot }), // ← added
+        ...(scheduledSlot && { scheduledSlot }),
         status: "placed",
     });
+
+    // 8. Credit agent commission — runs async, never blocks order ─────────────
+    User.findById(userId)
+        .select("referredBy")
+        .then((user) => {
+            if (user?.referredBy) {
+                creditAgentCommission(user.referredBy).catch((err) =>
+                    console.error("Commission error:", err),
+                );
+            }
+        })
+        .catch(() => {});
 
     return order;
 };
@@ -168,6 +174,5 @@ export const updateOrderStatus = async (
     order.status = status;
     order.statusHistory.push({ status, timestamp: new Date(), note });
     if (status === "delivered") order.deliveredAt = new Date();
-
     return order.save();
 };
