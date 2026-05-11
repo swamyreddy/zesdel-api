@@ -28,6 +28,13 @@ import {
     deleteAgent,
     markAgentPaid,
 } from "../controllers/agent.controller";
+import {
+    listTickets,
+    getTicket,
+    updateTicket,
+    deleteTicket,
+    getTicketStats,
+} from "../controllers/support.controller";
 import { body } from "express-validator";
 import { validate } from "../middleware/validate";
 
@@ -82,4 +89,9 @@ router.patch("/agents/:id", updateAgent);
 router.delete("/agents/:id", deleteAgent);
 router.post("/agents/:id/payout", markAgentPaid);
 
+router.get("/support/stats", getTicketStats);
+router.get("/support", listTickets);
+router.get("/support/:id", getTicket);
+router.patch("/support/:id", updateTicket);
+router.delete("/support/:id", deleteTicket);
 export default router;
