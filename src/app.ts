@@ -9,6 +9,7 @@ import mongoSanitize from "express-mongo-sanitize";
 import routes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
 import { logger } from "./utils/logger";
+import supportRoutes from "./routes/support.routes";
 
 const app: Application = express();
 
@@ -112,6 +113,7 @@ app.get("/health", (_req: Request, res: Response) => {
 
 // ── API routes ────────────────────────────────────────────
 app.use("/api/v1", routes);
+app.use("/api/v1/support", supportRoutes);
 
 // ── 404 handler ───────────────────────────────────────────
 app.use((_req: Request, res: Response) => {
