@@ -8,11 +8,11 @@ import {
     generateRefreshToken,
 } from "../services/token.service";
 import { generateOTP } from "../services/otp.service";
-// import { sendSmsOTP } from "../services/sms.service";
 import { sendOTP } from "../services/otp.service";
 import { sendSuccess, sendError } from "../utils/apiResponse";
 import { asyncHandler } from "../utils/asyncHandler";
 import { AppError } from "../middleware/errorHandler";
+import { Agent } from "../models/Agent";
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_ATTEMPTS = 5;
@@ -33,6 +33,13 @@ async function issueTokens(
     return sendSuccess(res, { user, accessToken, refreshToken }, message);
 }
 
+// ── Helper: validate agent code ───────────────────────────────────────────────
+async function validateRefCode(code?: string): Promise<string | null> {
+    if (!code) return null;
+    const agent = await Agent.findOne({ code, isActive: true });
+    return agent ? code : null;
+}
+
 // ── POST /api/auth/otp/send ───────────────────────────────────────────────────
 export const sendOtpHandler = asyncHandler(
     async (req: Request, res: Response) => {
@@ -41,7 +48,6 @@ export const sendOtpHandler = asyncHandler(
             purpose: "login" | "register" | "forgot_password";
         };
 
-        // Rate limit: max 3 OTPs per 10 minutes per phone+purpose
         const recentCount = await OTP.countDocuments({
             phone,
             purpose,
@@ -89,9 +95,7 @@ export const sendOtpHandler = asyncHandler(
             expiresAt: new Date(Date.now() + OTP_EXPIRY_MS),
         });
 
-        // await sendSmsOTP(phone, otp);
         await sendOTP(phone, otp);
-
         return sendSuccess(res, null, "OTP sent to your mobile number");
     },
 );
@@ -140,18 +144,18 @@ export const verifyLoginOtp = asyncHandler(
 // ── POST /api/auth/otp/verify-register ───────────────────────────────────────
 export const verifyRegisterOtp = asyncHandler(
     async (req: Request, res: Response) => {
-        const { phone, otp, name } = req.body as {
+        const { phone, otp, name, referredBy } = req.body as {
             phone: string;
             otp: string;
             name: string;
+            referredBy?: string; // ← agent code from Flutter localStorage
         };
 
-        if (!name || name.trim().length < 2) {
+        if (!name || name.trim().length < 2)
             throw new AppError(
                 "Full name is required (min 2 characters).",
                 400,
             );
-        }
 
         const otpDoc = await OTP.findOne({ phone, purpose: "register" });
         if (!otpDoc)
@@ -187,12 +191,16 @@ export const verifyRegisterOtp = asyncHandler(
 
         await otpDoc.deleteOne();
 
+        // Validate referral code — only save if agent exists and is active
+        const validRef = await validateRefCode(referredBy);
+
         const dummyHash = await bcrypt.hash(Math.random().toString(36), 12);
         const user = await User.create({
             name: name.trim(),
             phone,
             passwordHash: dummyHash,
             role: "customer",
+            ...(validRef && { referredBy: validRef }), // ← save agent code permanently
         });
 
         return issueTokens(user._id, user.role, res, "Registration successful");
@@ -244,41 +252,52 @@ export const verifyForgotPasswordOtp = asyncHandler(
         );
     },
 );
+
+// ── POST /api/auth/otp/verify-widget ─────────────────────────────────────────
 export const verifyWidgetToken = asyncHandler(
     async (req: Request, res: Response) => {
-        const { token, phone } = req.body as { token: string; phone: string };
+        const { token, phone, referredBy } = req.body as {
+            token: string;
+            phone: string;
+            referredBy?: string; // ← agent code from Flutter localStorage
+        };
 
         if (!token || !phone)
             return sendError(res, "token and phone are required", 400);
 
-        // Normalize — handle all formats:
-        // 9876543210      → +919876543210
-        // 919876543210    → +919876543210
-        // +919876543210   → +919876543210
-        const cleaned = String(phone).replace(/\D/g, ""); // digits only
+        // Normalize phone to 10-digit format
+        const cleaned = String(phone).replace(/\D/g, "");
         const rawPhone =
             cleaned.length === 12 && cleaned.startsWith("91")
                 ? cleaned.slice(2)
                 : cleaned.length === 10
                   ? cleaned
                   : cleaned.replace(/^91/, "");
-        const normalized = `${rawPhone}`;
+        const normalized = rawPhone;
 
-        // Find existing user — do NOT auto-create
         const user = await User.findOne({ phone: normalized });
 
         if (!user) {
+            // New user — save referredBy at account creation
+            const validRef = await validateRefCode(referredBy);
+
             const newUser = await User.create({
                 name: "Guest",
-                phone: phone,
-                //  passwordHash: dummyHash,
+                phone: normalized,
                 role: "customer",
+                ...(validRef && { referredBy: validRef }), // ← save permanently
             });
+
             const accessToken = generateAccessToken(
                 newUser._id as any,
                 newUser.role,
             );
             const refreshToken = generateRefreshToken(newUser._id as any);
+
+            await User.findByIdAndUpdate(newUser._id, {
+                $push: { refreshTokens: refreshToken },
+            });
+
             return sendSuccess(
                 res,
                 {
@@ -287,19 +306,16 @@ export const verifyWidgetToken = asyncHandler(
                         name: newUser.name,
                         phone: newUser.phone,
                         role: newUser.role,
+                        referredBy: newUser.referredBy,
                     },
                     accessToken,
                     refreshToken,
                 },
-                "Login successful",
+                "Registration successful",
             );
-            // return sendError(
-            //     res,
-            //     `Phone ${normalized} not registered. Please contact admin.`,
-            //     404,
-            // );
         }
 
+        // Existing user — never overwrite referredBy
         if (!user.isActive)
             return sendError(res, "Account is deactivated", 403);
 
@@ -320,6 +336,7 @@ export const verifyWidgetToken = asyncHandler(
                     name: user.name,
                     phone: user.phone,
                     role: user.role,
+                    referredBy: user.referredBy,
                 },
                 accessToken,
                 refreshToken,
